@@ -29,9 +29,9 @@ ua = UserAgent()
 
 def print_header():
     print(f"\n{Fore.CYAN}{'=' * 60}{Style.RESET_ALL}")
-    print(f"{Fore.BLACK}{Back.BLUE} TRUMP WALLET АВТОРЕГИСТРАЦИЯ {Style.RESET_ALL}")
+    print(f"{Fore.BLACK}{Back.BLUE} TRUMP WALLET AUTO-REGISTRATION {Style.RESET_ALL}")
     print(f"{Fore.CYAN}{'=' * 60}{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}{Style.BRIGHT}>>> ИСТОЧНИК: t.me/c_c_cc_c_c <<<{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}{Style.BRIGHT}>>> SOURCE: t.me/c_c_cc_c_c <<<{Style.RESET_ALL}")
     print(f"{Fore.CYAN}{'=' * 60}{Style.RESET_ALL}\n")
 
 
@@ -47,12 +47,12 @@ def log_success(message):
 
 def log_error(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
-    print(f"{Fore.RED}[{timestamp}] [ОШИБКА]{Style.RESET_ALL} {Fore.RED}{message}{Style.RESET_ALL}")
+    print(f"{Fore.RED}[{timestamp}] [ERROR]{Style.RESET_ALL} {Fore.RED}{message}{Style.RESET_ALL}")
 
 
 def log_warning(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
-    print(f"{Fore.YELLOW}[{timestamp}] [ВНИМАНИЕ]{Style.RESET_ALL} {Fore.YELLOW}{message}{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[{timestamp}] [WARNING]{Style.RESET_ALL} {Fore.YELLOW}{message}{Style.RESET_ALL}")
 
 
 def log_data(label, value):
@@ -124,12 +124,12 @@ def create_trump_session():
 async def create_email_account(client: httpx.AsyncClient, max_retries=3, retry_delay=30):
     for attempt in range(max_retries):
         try:
-            log_info("Получение доступных доменов...")
+            log_info("Fetching available domains...")
             r = await client.get(f"{API_BASE}/domains")
             r.raise_for_status()
             domains = [d["domain"] for d in r.json().get("hydra:member", [])]
             if not domains:
-                raise RuntimeError("Не удалось получить домены.")
+                raise RuntimeError("Failed to fetch domains.")
 
             domain = random.choice(domains)
 
@@ -138,17 +138,17 @@ async def create_email_account(client: httpx.AsyncClient, max_retries=3, retry_d
             password = generate_random_string(12, string.ascii_letters + string.digits)
 
             payload = {"address": email, "password": password}
-            log_info("Создание email аккаунта...")
+            log_info("Creating email account...")
             r = await client.post(f"{API_BASE}/accounts", json=payload)
             r.raise_for_status()
 
-            log_success(f"Email создан: {Fore.CYAN}{email}{Fore.GREEN}")
+            log_success(f"Email created: {Fore.CYAN}{email}{Fore.GREEN}")
             return email, password
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:  # Too Many Requests
                 if attempt < max_retries - 1:
-                    log_warning(f"Слишком много запросов. Повторная попытка через {retry_delay} секунд...")
+                    log_warning(f"Too many requests. Retrying in {retry_delay} seconds...")
                     await asyncio.sleep(retry_delay)
                     continue
                 else:
@@ -168,7 +168,7 @@ async def get_email_token(client: httpx.AsyncClient, email: str, password: str, 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:  # Too Many Requests
                 if attempt < max_retries - 1:
-                    log_warning(f"Слишком много запросов. Повторная попытка через {retry_delay} секунд...")
+                    log_warning(f"Too many requests. Retrying in {retry_delay} seconds...")
                     await asyncio.sleep(retry_delay)
                     continue
                 else:
@@ -180,7 +180,7 @@ async def get_email_token(client: httpx.AsyncClient, email: str, password: str, 
 async def wait_for_trump_email(client: httpx.AsyncClient, jwt_token: str, timeout=120):
     headers = {"Authorization": f"Bearer {jwt_token}"}
 
-    log_info("Ожидание письма от Trump Wallet...")
+    log_info("Waiting for email from Trump Wallet...")
     start_time = time.time()
     dots = 0
 
@@ -196,7 +196,7 @@ async def wait_for_trump_email(client: httpx.AsyncClient, jwt_token: str, timeou
             data = r2.json()
 
             if "trump" in data.get("subject", "").lower() or "trump" in data.get("from", {}).get("address", "").lower():
-                log_success(f"Письмо получено: {data.get('subject', 'Без темы')}")
+                log_success(f"Email received: {data.get('subject', 'No subject')}")
 
                 html_content = data.get("html", "")
                 if isinstance(html_content, list):
@@ -216,11 +216,11 @@ async def wait_for_trump_email(client: httpx.AsyncClient, jwt_token: str, timeou
 
         # Animated waiting indicator
         dots = (dots + 1) % 4
-        print(f"\r{Fore.YELLOW}Проверка почты{'.' * dots}{' ' * (3 - dots)}{Style.RESET_ALL}", end='', flush=True)
+        print(f"\r{Fore.YELLOW}Checking email{'.' * dots}{' ' * (3 - dots)}{Style.RESET_ALL}", end='', flush=True)
         await asyncio.sleep(3)
 
     print()  # New line after waiting
-    raise TimeoutError("Не удалось получить письмо в течение заданного времени")
+    raise TimeoutError("Failed to receive email within the specified time")
 
 
 def extract_referral_code(referral_link):
@@ -228,7 +228,7 @@ def extract_referral_code(referral_link):
     params = parse_qs(parsed.query)
     referral_code = params.get('ref', [None])[0]
     if not referral_code:
-        raise ValueError("Не удалось извлечь referral code из ссылки")
+        raise ValueError("Failed to extract referral code from the link")
     return referral_code
 
 
@@ -254,16 +254,16 @@ def register_trump_wallet(scraper, email: str, phone: str, twitter: str, referre
         },
     }
 
-    log_info("Отправка запроса на регистрацию...")
+    log_info("Sending registration request...")
     response = scraper.post(TRUMP_WALLET_API, headers=headers, json=json_data)
     response.raise_for_status()
 
-    log_success(f"Регистрация отправлена для {Fore.CYAN}{email}{Fore.GREEN}")
+    log_success(f"Registration sent for {Fore.CYAN}{email}{Fore.GREEN}")
     return response.json() if response.text else {}
 
 
 def get_final_url_with_cloudscraper(scraper, url: str):
-    log_info("Обработка ссылки из письма...")
+    log_info("Processing email link...")
 
     response = scraper.get(url, allow_redirects=True)
 
@@ -277,13 +277,13 @@ def extract_oob_code(url: str):
 
     oob_code = params.get('oobCode', [None])[0]
     if not oob_code:
-        raise ValueError("Не удалось извлечь oobCode из URL")
+        raise ValueError("Failed to extract oobCode from URL")
 
     return oob_code
 
 
 def complete_signin(scraper: cloudscraper.CloudScraper, email: str, oob_code: str):
-    log_info("Выполнение Firebase аутентификации...")
+    log_info("Performing Firebase authentication...")
 
     params = {'key': FIREBASE_KEY}
     payload = {
@@ -294,7 +294,7 @@ def complete_signin(scraper: cloudscraper.CloudScraper, email: str, oob_code: st
     response = scraper.post(FIREBASE_API, params=params, json=payload)
     response.raise_for_status()
     auth_data = response.json()
-    log_success("Firebase аутентификация успешна")
+    log_success("Firebase authentication successful")
     log_data("ID Token", f"{auth_data['idToken'][:50]}...")
 
     slingshot_headers = {
@@ -306,18 +306,18 @@ def complete_signin(scraper: cloudscraper.CloudScraper, email: str, oob_code: st
         'user-agent': scraper.headers['User-Agent'],
     }
 
-    log_info("Завершение авторизации...")
+    log_info("Completing authorization...")
     response2 = scraper.post(
         'https://waitlist.slingshot.app/oncallgetdashboard',
         headers=slingshot_headers,
         json={'data': None}
     )
     response2.raise_for_status()
-    log_success("Авторизация полностью завершена!")
+    log_success("Authorization fully completed!")
 
     dashboard_data = response2.json()
     if 'data' in dashboard_data:
-        log_data("Позиция в очереди", dashboard_data.get('data', {}).get('position', 'Н/Д'))
+        log_data("Queue position", dashboard_data.get('data', {}).get('position', 'N/A'))
 
     return auth_data
 
@@ -332,14 +332,14 @@ async def create_single_account(trump_session, email_client, referrer_id):
         twitter = generate_twitter_username()
 
         print(f"\n{Fore.CYAN}{'─' * 40}{Style.RESET_ALL}")
-        log_data("Телефон", phone)
+        log_data("Phone", phone)
         log_data("Twitter", twitter)
         print(f"{Fore.CYAN}{'─' * 40}{Style.RESET_ALL}\n")
 
         register_trump_wallet(trump_session, email, phone, twitter, referrer_id)
 
         email_link = await wait_for_trump_email(email_client, jwt_token)
-        log_success(f"Ссылка из письма получена")
+        log_success(f"Email link received")
 
         final_url = get_final_url_with_cloudscraper(trump_session, email_link)
 
@@ -348,25 +348,25 @@ async def create_single_account(trump_session, email_client, referrer_id):
         auth_result = complete_signin(trump_session, email, oob_code)
 
         print(f"\n{Fore.GREEN}{'=' * 60}{Style.RESET_ALL}")
-        print(f"{Fore.WHITE}{Back.GREEN} РЕГИСТРАЦИЯ УСПЕШНО ЗАВЕРШЕНА! {Style.RESET_ALL}")
+        print(f"{Fore.WHITE}{Back.GREEN} REGISTRATION SUCCESSFULLY COMPLETED! {Style.RESET_ALL}")
         print(f"{Fore.GREEN}{'=' * 60}{Style.RESET_ALL}")
 
-        print(f"\n{Fore.CYAN}Данные аккаунта:{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}Account details:{Style.RESET_ALL}")
         print(f"{Fore.WHITE}Email: {Fore.CYAN}{email}{Style.RESET_ALL}")
-        print(f"{Fore.WHITE}Пароль от почты: {Fore.CYAN}{password}{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}Email password: {Fore.CYAN}{password}{Style.RESET_ALL}")
 
         with open("trump_wallet_accounts.txt", "a", encoding="utf-8") as f:
             f.write(f"\n{'=' * 50}\n")
-            f.write(f"Дата: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Email: {email}\n")
-            f.write(f"Пароль от почты: {password}\n")
-            f.write(f"Телефон: {phone}\n")
+            f.write(f"Email password: {password}\n")
+            f.write(f"Phone: {phone}\n")
             f.write(f"Twitter: {twitter}\n")
 
-        log_success("Данные сохранены в trump_wallet_accounts.txt")
+        log_success("Data saved to trump_wallet_accounts.txt")
 
     except Exception as e:
-        log_error(f"Произошла ошибка: {e}")
+        log_error(f"An error occurred: {e}")
         raise
 
 
@@ -375,21 +375,21 @@ async def main():
 
     # Prompt user for the number of accounts
     try:
-        num_accounts = int(input(f"{Fore.YELLOW}Сколько аккаунтов создать? (Введите число): {Style.RESET_ALL}"))
+        num_accounts = int(input(f"{Fore.YELLOW}How many accounts to create? (Enter a number): {Style.RESET_ALL}"))
         if num_accounts <= 0:
-            log_error("Число аккаунтов должно быть больше 0.")
+            log_error("The number of accounts must be greater than 0.")
             return
     except ValueError:
-        log_error("Пожалуйста, введите корректное число.")
+        log_error("Please enter a valid number.")
         return
 
-    log_info(f"Будет создано {num_accounts} аккаунтов.")
+    log_info(f"Will create {num_accounts} accounts.")
 
     if PROXY_CONFIG["http"] or PROXY_CONFIG["https"]:
-        log_warning(f"Используется прокси: {PROXY_CONFIG}")
+        log_warning(f"Using proxy: {PROXY_CONFIG}")
 
     trump_session = create_trump_session()
-    log_info(f"Сессия создана с User-Agent: {trump_session.headers['user-agent'][:50]}...")
+    log_info(f"Session created with User-Agent: {trump_session.headers['user-agent'][:50]}...")
 
     # Read referral link from ref.txt
     try:
@@ -397,7 +397,7 @@ async def main():
             referral_link = f.read().strip()
         log_info(f"Referral link from ref.txt: {referral_link}")
     except FileNotFoundError:
-        log_error("Файл ref.txt не найден. Убедитесь, что файл существует.")
+        log_error("File ref.txt not found. Ensure the file exists.")
         return
 
     # Extract referral code from the link
@@ -410,16 +410,16 @@ async def main():
 
     async with httpx.AsyncClient(timeout=30) as email_client:
         for i in range(num_accounts):
-            log_info(f"Создание аккаунта {i+1} из {num_accounts}...")
+            log_info(f"Creating account {i+1} of {num_accounts}...")
             await create_single_account(trump_session, email_client, referrer_id)
             if i < num_accounts - 1:
-                log_info("Ожидание перед созданием следующего аккаунта...")
+                log_info("Waiting before creating the next account...")
                 await asyncio.sleep(60)  # Delay to avoid rate limiting
 
     trump_session.close()
 
     print(f"\n{Fore.YELLOW}{Style.BRIGHT}{'─' * 60}{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}{Style.BRIGHT}>>> ИСТОЧНИК: t.me/c_c_cc_c_c <<<{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}{Style.BRIGHT}>>> SOURCE: t.me/c_c_cc_c_c <<<{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}{Style.BRIGHT}{'─' * 60}{Style.RESET_ALL}")
 
 
